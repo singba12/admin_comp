@@ -1364,7 +1364,7 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const database = firebase.database();
-
+        const reglerNotificationCallable = firebase.functions().httpsCallable('reglerNotificationManuelle');
         // URL Firebase
         const FIREBASE_BASE_URL = "https://agrise-7291a-default-rtdb.firebaseio.com";
         const LICENCES_URL = `${FIREBASE_BASE_URL}/licences.json`;

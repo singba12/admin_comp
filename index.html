@@ -112,14 +112,13 @@
         }
 
         .btn {
-            width: 100%;
             padding: 14px 16px;
             border-radius: 8px;
             border: none;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
@@ -345,7 +344,7 @@
             align-items: center;
         }
 
-        /* Nouveau: Conteneur des filtres */
+        /* Filtres */
         .filters-container {
             display: flex;
             gap: 15px;
@@ -532,7 +531,7 @@
             font-size: 0.85rem;
             font-weight: 500;
             transition: var(--transition);
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 5px;
         }
@@ -1103,6 +1102,11 @@
                 <div class="header-left">
                     <h1><i class="fas fa-key"></i> Gestion des Licences Compo</h1>
                     <p>Gestion des licences - Durée de validité: 1 an</p>
+                    <!-- Boutons de bascule -->
+                    <div style="margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="afficherLicences()" id="btn-licences" style="margin-right: 10px;">📋 Licences</button>
+                        <button class="btn btn-secondary" onclick="afficherNotifications()" id="btn-notifications">🔔 Notifications en attente</button>
+                    </div>
                 </div>
                 <div class="user-info" id="user-info">
                     <div class="user-avatar" id="user-avatar">AD</div>
@@ -1191,8 +1195,8 @@
                 </div>
             </div>
 
-            <!-- Main Container -->
-            <div class="admin-container">
+            <!-- Main Container pour les licences -->
+            <div class="admin-container" id="licences-container">
                 <div class="container-header">
                     <h2><i class="fas fa-list"></i> Liste des Licences</h2>
                     <div class="controls">
@@ -1280,6 +1284,53 @@
                 </div>
             </div>
 
+            <!-- Section Notifications en attente (cachée par défaut) -->
+            <div class="admin-container" id="notifications-container" style="display: none;">
+                <div class="container-header">
+                    <h2><i class="fas fa-bell"></i> Notifications en attente</h2>
+                    <div class="controls">
+                        <button class="btn btn-secondary" onclick="chargerNotificationsNonReglees()">
+                            <i class="fas fa-sync-alt"></i> Actualiser
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtre simple -->
+                <div class="filters-container">
+                    <div class="filter-group">
+                        <label for="filter-notif-app"><i class="fas fa-filter"></i> Application</label>
+                        <select id="filter-notif-app" class="filter-select">
+                            <option value="all">Toutes</option>
+                            <option value="com.wave.business">Wave Business</option>
+                            <option value="com.google.android.apps.messaging">SMS (Orange Money)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-secondary" onclick="appliquerFiltreNotifications()" style="align-self: flex-end;">Filtrer</button>
+                </div>
+
+                <!-- Résumé -->
+                <div class="search-results">
+                    <div><strong id="notif-count">0</strong> notification(s) en attente</div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Application</th>
+                                <th>Titre</th>
+                                <th>Message</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notifications-table-body">
+                            <!-- Les notifications seront insérées ici -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Footer -->
             <div class="footer">
                 <p><i class="far fa-copyright"></i> <span id="current-year2">2023</span> Compo Admin. Mise à jour: <span id="last-update">--:--:--</span></p>
@@ -1318,15 +1369,19 @@
         const FIREBASE_BASE_URL = "https://agrise-7291a-default-rtdb.firebaseio.com";
         const LICENCES_URL = `${FIREBASE_BASE_URL}/licences.json`;
 
-        // Variables globales
+        // Variables globales pour les licences
         let allData = [];
         let filteredData = [];
         let currentSort = { column: 'date', direction: 'desc' };
         let searchTimeout = null;
         let generatedCodesCache = [];
 
+        // Variables pour les notifications
+        let allNotifications = [];
+        let filteredNotifications = [];
+
         // Durée de validité en millisecondes (1 an)
-        const VALIDITY_DURATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 an en millisecondes
+        const VALIDITY_DURATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 an
         const EXPIRING_SOON_DAYS = 30; // Jours avant expiration pour alerte
 
         // Caractères autorisés pour les codes (sans 0 et sans O)
@@ -1522,7 +1577,7 @@
                 
                 showDashboard();
                 updateUserInfo(userCredential.user);
-                chargerDonnees();
+                afficherLicences(); // Afficher les licences par défaut
                 
                 showNotification(`Bienvenue ${userCredential.user.email}`);
                 
@@ -1587,11 +1642,13 @@
             if (user) {
                 showDashboard();
                 updateUserInfo(user);
-                chargerDonnees();
+                afficherLicences(); // Par défaut, afficher les licences
             } else {
                 showLogin();
             }
         });
+
+        // ==================== GESTION DES LICENCES ====================
 
         // Charger les données
         async function chargerDonnees() {
@@ -1828,7 +1885,7 @@
             displayTable();
         }
 
-        // Afficher le tableau
+        // Afficher le tableau des licences
         function displayTable() {
             const tableBody = document.getElementById('table-body');
             const resultsCount = document.getElementById('results-count');
@@ -2193,13 +2250,6 @@
             codesContainer.scrollTop = codesContainer.scrollHeight;
         }
 
-        // Générer un seul code (compatibilité)
-        async function genererNouveauCode() {
-            document.getElementById('code-quantity').value = 1;
-            openBatchGenerator();
-            setTimeout(() => genererCodesBatch(), 100);
-        }
-
         // Changer le statut
         async function toggleStatut(code, actuel) {
             const nouveauStatut = actuel === 'actif' ? 'banni' : 'actif';
@@ -2232,6 +2282,111 @@
             }
         }
 
+        // ==================== GESTION DES NOTIFICATIONS ====================
+
+        // Basculer entre les vues
+        function afficherLicences() {
+            document.getElementById('licences-container').style.display = 'block';
+            document.getElementById('notifications-container').style.display = 'none';
+            chargerDonnees(); // recharge les licences si besoin
+        }
+
+        function afficherNotifications() {
+            document.getElementById('licences-container').style.display = 'none';
+            document.getElementById('notifications-container').style.display = 'block';
+            chargerNotificationsNonReglees();
+        }
+
+        // Charger les notifications depuis /notifications/toSend
+        async function chargerNotificationsNonReglees() {
+            try {
+                document.body.classList.add('loading');
+                const snapshot = await database.ref('notifications/toSend').once('value');
+                const data = snapshot.val();
+                
+                allNotifications = [];
+                if (data) {
+                    for (let id in data) {
+                        const notif = data[id];
+                        // Ne garder que celles qui ne sont pas réglées
+                        if (!notif.status || notif.status !== 'réglé') {
+                            allNotifications.push({
+                                id: id,
+                                app: notif.app || 'inconnu',
+                                title: notif.title || '',
+                                message: notif.message || '',
+                                time: notif.time || notif.timestamp,
+                                data: notif
+                            });
+                        }
+                    }
+                }
+                
+                // Trier par date décroissante (les plus récentes d'abord)
+                allNotifications.sort((a, b) => (b.time || 0) - (a.time || 0));
+                
+                appliquerFiltreNotifications();
+                document.getElementById('notif-count').textContent = allNotifications.length;
+                showNotification(`${allNotifications.length} notification(s) en attente`);
+            } catch (error) {
+                console.error('Erreur chargement notifications:', error);
+                showNotification('Erreur de chargement des notifications', true);
+            } finally {
+                document.body.classList.remove('loading');
+            }
+        }
+
+        // Appliquer le filtre (par application)
+        function appliquerFiltreNotifications() {
+            const filterApp = document.getElementById('filter-notif-app').value;
+            let result = allNotifications;
+            
+            if (filterApp !== 'all') {
+                result = result.filter(n => n.app === filterApp);
+            }
+            
+            filteredNotifications = result;
+            afficherTableNotifications();
+        }
+
+        // Afficher le tableau des notifications
+        function afficherTableNotifications() {
+            const tbody = document.getElementById('notifications-table-body');
+            if (filteredNotifications.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="no-results"><i class="fas fa-inbox"></i><p>Aucune notification en attente</p></td></tr>`;
+                return;
+            }
+            
+            let html = '';
+            filteredNotifications.forEach(notif => {
+                const date = notif.time ? new Date(notif.time).toLocaleString('fr-FR') : 'Date inconnue';
+                // Bouton "Régler" (simulation pour l'instant)
+                const actionBtn = `<button class="btn-action btn-success" onclick="reglerNotification('${notif.id}')"><i class="fas fa-check"></i> Régler</button>`;
+                
+                html += `
+                    <tr>
+                        <td>${notif.app}</td>
+                        <td>${notif.title}</td>
+                        <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${notif.message}</td>
+                        <td>${date}</td>
+                        <td>${actionBtn}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        // Fonction temporaire pour "régler" une notification (simulation)
+        function reglerNotification(notificationId) {
+            // Ici vous pourrez appeler une Cloud Function plus tard
+            alert(`Traitement manuel de la notification ${notificationId} (simulation)`);
+            // Recharger la liste après simulation (pour cacher la notification si on veut)
+            // Pour une vraie intégration, on appellerait une fonction callable Firebase
+        }
+
+        // Écouteur pour le filtre
+        document.getElementById('filter-notif-app').addEventListener('change', appliquerFiltreNotifications);
+
         // Vérifier automatiquement les expirations toutes les heures
         function startExpirationChecker() {
             setInterval(() => {
@@ -2246,7 +2401,7 @@
             }
         }
 
-        // Écouteurs d'événements
+        // Écouteurs d'événements pour les licences
         document.getElementById('filter-status').addEventListener('change', applyFiltersAndSort);
         document.getElementById('filter-hwid').addEventListener('change', applyFiltersAndSort);
         document.getElementById('filter-expiration').addEventListener('change', applyFiltersAndSort);
@@ -2260,7 +2415,7 @@
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
 
-        // Rafraîchir automatiquement toutes les 30 secondes
+        // Rafraîchir automatiquement les licences toutes les 30 secondes
         setInterval(chargerDonnees, 30000);
         
         // Démarrer la vérification des expirations

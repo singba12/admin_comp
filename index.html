@@ -2373,11 +2373,35 @@
         }
 
         // Fonction temporaire pour "régler" une notification (simulation)
-        function reglerNotification(notificationId) {
-            // Ici vous pourrez appeler une Cloud Function plus tard
-            alert(`Traitement manuel de la notification ${notificationId} (simulation)`);
-            // Recharger la liste après simulation (pour cacher la notification si on veut)
-            // Pour une vraie intégration, on appellerait une fonction callable Firebase
+        // Initialiser les fonctions callable Firebase (après firebase.initializeApp)
+        const reglerNotificationCallable = firebase.functions().httpsCallable('reglerNotificationManuelle');
+        
+        async function reglerNotification(notificationId) {
+            if (!confirm('Voulez-vous vraiment régler cette notification manuellement ?')) {
+                return;
+            }
+            try {
+                document.body.classList.add('loading');
+                const result = await reglerNotificationCallable({ notificationId: notificationId });
+                showNotification(`✅ ${result.data.message} (code: ${result.data.code})`);
+                // Recharger la liste des notifications en attente
+                chargerNotificationsNonReglees();
+            } catch (error) {
+                console.error('Erreur appel fonction:', error);
+                let message = 'Erreur inconnue';
+                if (error.code === 'unauthenticated') {
+                    message = 'Vous devez être connecté.';
+                } else if (error.code === 'not-found') {
+                    message = 'Notification introuvable.';
+                } else if (error.code === 'failed-precondition') {
+                    message = error.message;
+                } else {
+                    message = error.message || 'Erreur lors du réglage.';
+                }
+                showNotification(`❌ ${message}`, true);
+            } finally {
+                document.body.classList.remove('loading');
+            }
         }
 
         // Écouteur pour le filtre

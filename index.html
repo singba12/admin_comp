@@ -2308,23 +2308,19 @@
                 if (data) {
                     for (let id in data) {
                         const notif = data[id];
-                        // Ne garder que celles qui ne sont pas réglées
-                        if (!notif.status || notif.status !== 'réglé') {
-                            allNotifications.push({
-                                id: id,
-                                app: notif.app || 'inconnu',
-                                title: notif.title || '',
-                                message: notif.message || '',
-                                time: notif.time || notif.timestamp,
-                                data: notif
-                            });
-                        }
+                        // Toutes les notifications dans toSend sont en attente
+                        allNotifications.push({
+                            id: id,
+                            app: notif.app || 'inconnu',
+                            title: notif.title || '',
+                            message: notif.message || '',
+                            time: notif.time || notif.timestamp,
+                            data: notif
+                        });
                     }
                 }
                 
-                // Trier par date décroissante (les plus récentes d'abord)
                 allNotifications.sort((a, b) => (b.time || 0) - (a.time || 0));
-                
                 appliquerFiltreNotifications();
                 document.getElementById('notif-count').textContent = allNotifications.length;
                 showNotification(`${allNotifications.length} notification(s) en attente`);

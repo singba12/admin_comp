@@ -1056,6 +1056,149 @@
             background: var(--expired-light);
             color: var(--expired);
         }
+
+        /* Formulaire SMS */
+        .sms-form {
+            background: var(--light);
+            border-radius: var(--radius);
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .sms-form__header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sms-form__header i {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .sms-form__header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--dark);
+        }
+
+        .sms-form__body {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .phone-input-wrapper {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            transition: var(--transition);
+        }
+
+        .phone-input-wrapper:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 133, 63, 0.1);
+        }
+
+        .phone-prefix {
+            padding: 12px 16px;
+            background: #f3f4f6;
+            border-right: 1px solid var(--border);
+            border-radius: 8px 0 0 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        .phone-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 0 8px 8px 0;
+            font-size: 1rem;
+            background: transparent;
+        }
+
+        .phone-input:focus {
+            outline: none;
+        }
+
+        .input-hint {
+            font-size: 0.8rem;
+            color: var(--gray);
+        }
+
+        .sms-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+            transition: var(--transition);
+        }
+
+        .sms-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 133, 63, 0.1);
+        }
+
+        /* Iframe container */
+        .iframe-container {
+            padding: 20px;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+        }
+
+        .iframe-container iframe {
+            width: 100%;
+            height: 80vh;
+            border: none;
+            border-radius: 8px;
+        }
+
+        /* Responsive pour formulaire SMS */
+        @media (max-width: 768px) {
+            .sms-form {
+                margin: 15px;
+            }
+            
+            .phone-input-wrapper {
+                flex-wrap: wrap;
+            }
+            
+            .phone-prefix {
+                width: 100%;
+                border-radius: 8px 8px 0 0;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .phone-input {
+                width: 100%;
+                border-radius: 0 0 8px 8px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1107,6 +1250,8 @@
                     <div style="margin-top: 10px;">
                         <button class="btn btn-secondary" onclick="afficherLicences()" id="btn-licences" style="margin-right: 10px;">📋 Licences</button>
                         <button class="btn btn-secondary" onclick="afficherNotifications()" id="btn-notifications">🔔 Notifications en attente</button>
+                        <!-- Nouveau bouton Wave -->
+                        <button class="btn btn-secondary" onclick="afficherWave()" id="btn-wave" style="margin-left: 10px;">🌊 Wave Business</button>
                     </div>
                 </div>
                 <div class="user-info" id="user-info">
@@ -1332,6 +1477,48 @@
                 </div>
             </div>
 
+            <!-- Nouveau conteneur Wave Business (iframe) -->
+            <div class="admin-container" id="wave-container" style="display: none;">
+                <div class="container-header">
+                    <h2><i class="fas fa-globe"></i> Wave Business - Gestion</h2>
+                    <div class="controls">
+                        <button class="btn btn-secondary" onclick="chargerWaveIframe()">
+                            <i class="fas fa-sync-alt"></i> Recharger
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Formulaire d'envoi de SMS -->
+                <div class="sms-form">
+                    <div class="sms-form__header">
+                        <i class="fas fa-sms"></i>
+                        <h3>Envoyer un SMS</h3>
+                    </div>
+                    <div class="sms-form__body">
+                        <div class="input-group">
+                            <label for="phone-number">Numéro de téléphone (Wave)</label>
+                            <div class="phone-input-wrapper">
+                                <span class="phone-prefix">+221</span>
+                                <input type="tel" id="phone-number" class="phone-input" placeholder="7XXXXXXXX" maxlength="9" pattern="[0-9]{9}">
+                            </div>
+                            <small class="input-hint">Format: 7XXXXXXXX (ex: 771234567)</small>
+                            <div class="error-message" id="phone-error" style="display: none;"></div>
+                        </div>
+                        <div class="input-group">
+                            <label for="sms-message">Message (optionnel)</label>
+                            <textarea id="sms-message" class="sms-textarea" rows="3" placeholder="Message personnalisé..."></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="btn-send-sms" onclick="envoyerSMS()">
+                            <i class="fas fa-paper-plane"></i> Envoyer SMS
+                        </button>
+                    </div>
+                </div>
+
+                <div class="iframe-container">
+                    <iframe id="wave-iframe" src="https://business.wave.com/home" title="Wave Business Dashboard"></iframe>
+                </div>
+            </div>
+
             <!-- Footer -->
             <div class="footer">
                 <p><i class="far fa-copyright"></i> <span id="current-year2">2023</span> Compo Admin. Mise à jour: <span id="last-update">--:--:--</span></p>
@@ -1366,6 +1553,7 @@
         const auth = firebase.auth();
         const database = firebase.database();
         const reglerNotificationCallable = firebase.functions().httpsCallable('reglerNotificationManuelle');
+        const envoyerSMSCallable = firebase.functions().httpsCallable('envoyerSMS');
        
         // URL Firebase
         const FIREBASE_BASE_URL = "https://agrise-7291a-default-rtdb.firebaseio.com";
@@ -2289,15 +2477,95 @@
         function afficherLicences() {
             document.getElementById('licences-container').style.display = 'block';
             document.getElementById('notifications-container').style.display = 'none';
+            document.getElementById('wave-container').style.display = 'none';
             chargerDonnees(); // recharge les licences si besoin
         }
 
         function afficherNotifications() {
             document.getElementById('licences-container').style.display = 'none';
             document.getElementById('notifications-container').style.display = 'block';
+            document.getElementById('wave-container').style.display = 'none';
             chargerNotificationsNonReglees();
         }
 
+        // Nouvelle fonction pour afficher Wave Business
+        function afficherWave() {
+            document.getElementById('licences-container').style.display = 'none';
+            document.getElementById('notifications-container').style.display = 'none';
+            document.getElementById('wave-container').style.display = 'block';
+        }
+
+        // Fonction pour recharger l'iframe
+        function chargerWaveIframe() {
+            const iframe = document.getElementById('wave-iframe');
+            iframe.src = iframe.src; // recharge
+            showNotification("Rechargement de Wave Business");
+        }
+
+        // ==================== ENVOI DE SMS ====================
+        async function envoyerSMS() {
+            const phoneInput = document.getElementById('phone-number');
+            const messageInput = document.getElementById('sms-message');
+            const errorDiv = document.getElementById('phone-error');
+            
+            // Nettoyer l'erreur précédente
+            errorDiv.style.display = 'none';
+            errorDiv.innerHTML = '';
+            
+            let phone = phoneInput.value.trim();
+            if (!phone) {
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Veuillez saisir un numéro de téléphone.';
+                errorDiv.style.display = 'flex';
+                phoneInput.focus();
+                return;
+            }
+            
+            // Supprimer les espaces et caractères non numériques
+            phone = phone.replace(/\D/g, '');
+            
+            // Format complet : 221 + 9 chiffres (car +221 puis 7XXXXXXXX)
+            if (phone.length !== 9) {
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Le numéro doit contenir 9 chiffres (ex: 771234567).';
+                errorDiv.style.display = 'flex';
+                phoneInput.focus();
+                return;
+            }
+            
+            const fullNumber = '221' + phone;
+            
+            const message = messageInput.value.trim() || 'Test automatique depuis l\'administration Compo.';
+            
+            if (!confirm(`Envoyer un SMS au ${fullNumber} ?`)) return;
+            
+            const btn = document.getElementById('btn-send-sms');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<div class="loader"></div> Envoi...';
+            btn.disabled = true;
+            
+            try {
+                const result = await envoyerSMSCallable({ phoneNumber: fullNumber, message: message });
+                showNotification(`✅ SMS envoyé avec succès à ${fullNumber}`);
+                // Optionnel : vider les champs
+                // phoneInput.value = '';
+                // messageInput.value = '';
+            } catch (error) {
+                console.error('Erreur envoi SMS:', error);
+                let errorMessage = "Erreur lors de l'envoi du SMS";
+                if (error.code === 'unauthenticated') {
+                    errorMessage = "Vous n'êtes pas authentifié.";
+                } else if (error.code === 'invalid-argument') {
+                    errorMessage = "Numéro invalide.";
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                showNotification(`❌ ${errorMessage}`, true);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // ==================== NOTIFICATIONS (suite) ====================
         // Charger les notifications depuis /notifications/toSend
         async function chargerNotificationsNonReglees() {
             try {
@@ -2357,7 +2625,7 @@
             let html = '';
             filteredNotifications.forEach(notif => {
                 const date = notif.time ? new Date(notif.time).toLocaleString('fr-FR') : 'Date inconnue';
-                // Bouton "Régler" (simulation pour l'instant)
+                // Bouton "Régler"
                 const actionBtn = `<button class="btn-action btn-success" onclick="reglerNotification('${notif.id}')"><i class="fas fa-check"></i> Régler</button>`;
                 
                 html += `
@@ -2373,9 +2641,7 @@
             tbody.innerHTML = html;
         }
 
-        // Fonction temporaire pour "régler" une notification (simulation)
-        
-        
+        // Fonction pour régler une notification
         async function reglerNotification(notificationId) {
             if (!confirm('Voulez-vous vraiment régler cette notification manuellement ?')) {
                 return;

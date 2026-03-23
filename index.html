@@ -1276,8 +1276,15 @@
             </div>
 
             <!-- Stats Cards -->
-            <button class="btn btn-secondary onclick=`function(){document.getElementById("stats").style.display = 'block';}`>Show stats</button>
-            <button class="btn btn-secondary onclick=`function(){document.getElementById("stats").style.display = 'none';}`>Hide stats</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('stats').style.display = 'block';">
+                Show stats
+            </button>
+            
+            <button class="btn btn-secondary" onclick="document.getElementById('stats').style.display = 'none';">
+                Hide stats
+            </button>
+
+            
             <div class="stats-grid" id="stats" style="display:none">
                 <div class="stat-card">
                     <div class="stat-info">

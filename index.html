@@ -1144,23 +1144,6 @@
             color: var(--gray);
         }
 
-        .sms-textarea {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 0.95rem;
-            resize: vertical;
-            transition: var(--transition);
-        }
-
-        .sms-textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 133, 63, 0.1);
-        }
-
         /* Iframe container */
         .iframe-container {
             padding: 20px;
@@ -1488,11 +1471,11 @@
                     </div>
                 </div>
                 
-                <!-- Formulaire d'envoi de SMS -->
+                <!-- Formulaire d'envoi de SMS (sans message) -->
                 <div class="sms-form">
                     <div class="sms-form__header">
                         <i class="fas fa-sms"></i>
-                        <h3>Envoyer un SMS</h3>
+                        <h3>Envoyer un code d'activation</h3>
                     </div>
                     <div class="sms-form__body">
                         <div class="input-group">
@@ -1504,12 +1487,8 @@
                             <small class="input-hint">Format: 7XXXXXXXX (ex: 771234567)</small>
                             <div class="error-message" id="phone-error" style="display: none;"></div>
                         </div>
-                        <div class="input-group">
-                            <label for="sms-message">Message (optionnel)</label>
-                            <textarea id="sms-message" class="sms-textarea" rows="3" placeholder="Message personnalisé..."></textarea>
-                        </div>
                         <button class="btn btn-primary" id="btn-send-sms" onclick="envoyerSMS()">
-                            <i class="fas fa-paper-plane"></i> Envoyer SMS
+                            <i class="fas fa-paper-plane"></i> Envoyer le code
                         </button>
                     </div>
                 </div>
@@ -2505,7 +2484,6 @@
         // ==================== ENVOI DE SMS ====================
         async function envoyerSMS() {
             const phoneInput = document.getElementById('phone-number');
-            const messageInput = document.getElementById('sms-message');
             const errorDiv = document.getElementById('phone-error');
             
             // Nettoyer l'erreur précédente
@@ -2533,31 +2511,82 @@
             
             const fullNumber = '221' + phone;
             
-            const message = messageInput.value.trim() || 'Test automatique depuis l\'administration Compo.';
-            
-            if (!confirm(`Envoyer un SMS au ${fullNumber} ?`)) return;
+            if (!confirm(`Générer un code et l'envoyer par SMS au ${fullNumber} ?`)) return;
             
             const btn = document.getElementById('btn-send-sms');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<div class="loader"></div> Envoi...';
+            btn.innerHTML = '<div class="loader"></div> Génération du code...';
             btn.disabled = true;
             
             try {
-                const result = await envoyerSMSCallable({ phoneNumber: fullNumber, message: message });
-                showNotification(`✅ SMS envoyé avec succès à ${fullNumber}`);
-                // Optionnel : vider les champs
-                // phoneInput.value = '';
-                // messageInput.value = '';
-            } catch (error) {
-                console.error('Erreur envoi SMS:', error);
-                let errorMessage = "Erreur lors de l'envoi du SMS";
-                if (error.code === 'unauthenticated') {
-                    errorMessage = "Vous n'êtes pas authentifié.";
-                } else if (error.code === 'invalid-argument') {
-                    errorMessage = "Numéro invalide.";
-                } else if (error.message) {
-                    errorMessage = error.message;
+                // 1. Générer un code unique et le sauvegarder dans Firebase
+                // Récupérer les codes existants depuis allData
+                const existingCodes = allData.map(item => item.code.toUpperCase());
+                let attempts = 0;
+                let code;
+                let isUnique = false;
+                let localCache = [...generatedCodesCache];
+                
+                while (attempts < 10 && !isUnique) {
+                    code = generate4CharCode();
+                    isUnique = isCodeUnique(code, existingCodes) && isCodeUnique(code, localCache);
+                    attempts++;
                 }
+                
+                if (!isUnique) {
+                    throw new Error("Impossible de générer un code unique après plusieurs tentatives.");
+                }
+                
+                const now = new Date();
+                const formattedDate = now.toLocaleDateString('fr-FR', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric'
+                }) + ' à ' + now.toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const expirationDate = new Date(now.getTime() + VALIDITY_DURATION_MS);
+                const expirationFormatted = expirationDate.toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                const payload = {
+                    status: "actif",
+                    hwid: "",
+                    date_creation: formattedDate,
+                    date_expiration: expirationFormatted
+                };
+                
+                const saveResponse = await fetch(`${FIREBASE_BASE_URL}/licences/${code}.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!saveResponse.ok) {
+                    throw new Error(`Erreur HTTP ${saveResponse.status} lors de la sauvegarde du code`);
+                }
+                
+                // Mettre à jour le cache local
+                generatedCodesCache.push(code);
+                // Recharger les données pour que le code apparaisse dans l'interface
+                await chargerDonnees();
+                
+                const formattedCode = code.slice(0, 2) + "-" + code.slice(2);
+                const smsMessage = `${formattedCode} est votre code pour activer Compo.\n NB: Ce code est à usage unique.`;
+                
+                // 2. Envoyer le SMS via la cloud function existante
+                btn.innerHTML = '<div class="loader"></div> Envoi du SMS...';
+                const result = await envoyerSMSCallable({ phoneNumber: fullNumber, message: smsMessage });
+                showNotification(`✅ SMS envoyé avec succès à ${fullNumber} (code: ${code})`);
+                phoneInput.value = ''; // vider le champ
+            } catch (error) {
+                console.error('Erreur:', error);
+                let errorMessage = "Erreur lors de l'envoi";
+                if (error.message) errorMessage = error.message;
                 showNotification(`❌ ${errorMessage}`, true);
             } finally {
                 btn.innerHTML = originalText;
